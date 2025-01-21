@@ -1,6 +1,5 @@
 # Ignorar arquivos de credenciais sensíveis
 credentials.json
-/.streamlit/secrets.toml
 .env
 
 # Ignorar arquivos de configuração do VSCode
