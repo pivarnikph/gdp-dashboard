@@ -29,7 +29,7 @@ class streamlit_app:
             }
             .stButton > button {
                 background-color: #00513F;
-                color: white;
+                color: grey;
                 width: 100%;
                 height: 50px;
                 margin-top: 20px;
@@ -104,7 +104,7 @@ class streamlit_app:
 
     def load_excel_data(self):
         try:
-            self.df = pd.read_excel('/workspaces/gdp-dashboard/data/DOTAÇÕES.xlsx')
+            self.df = pd.read_excel('/workspaces/gdp-dashboard/data/DOTACOES.xlsx')
             self.orgaos = sorted(self.df['ÓRGÃO'].unique())
             return True
         except Exception as e:
