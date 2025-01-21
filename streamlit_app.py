@@ -1,23 +1,29 @@
+import os
+import json
 import streamlit as st
 from datetime import datetime
 import pandas as pd
 from google.oauth2 import service_account
-from googleapiclient.discovery import build
 import gspread
 from gspread_dataframe import set_with_dataframe
+from dotenv import load_dotenv
 import locale
 
+# Carregar variáveis de ambiente do arquivo `.env`
+load_dotenv()
+
+# Configurar o locale para exibição de valores monetários
 try:
     locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 except:
     locale.setlocale(locale.LC_ALL, '')
 
-class streamlit_app:
+class StreamlitApp:
     def __init__(self):
         self.configure_page()
         self.initialize_google_sheets()
         self.load_excel_data()
-        
+
     def configure_page(self):
         st.set_page_config(page_title="Disponibilização de Dotação", layout="centered")
         
@@ -65,41 +71,38 @@ class streamlit_app:
 
     def initialize_google_sheets(self):
         try:
-            credentials = service_account.Credentials.from_service_account_file(
-                'credentials.json',
+            # Carregar credenciais da variável de ambiente
+            credentials_content = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_CONTENT")
+            if not credentials_content:
+                raise ValueError("A variável de ambiente 'GOOGLE_APPLICATION_CREDENTIALS_CONTENT' não foi configurada.")
+            
+            credentials_info = json.loads(credentials_content)
+            credentials = service_account.Credentials.from_service_account_info(
+                credentials_info,
                 scopes=[
-                    'https://www.googleapis.com/auth/spreadsheets',
-                    'https://www.googleapis.com/auth/drive'
+                    "https://www.googleapis.com/auth/spreadsheets",
+                    "https://www.googleapis.com/auth/drive"
                 ]
             )
-            
+
             self.gc = gspread.authorize(credentials)
-            self.service_account_email = credentials.service_account_email
-            self.SHEET_ID = '1Gx5-Fd5lW0tO18jwiKilRN3OVjOPoD2t0GSSnpEKvmQ'
+            self.SHEET_ID = "1Gx5-Fd5lW0tO18jwiKilRN3OVjOPoD2t0GSSnpEKvmQ"
             
+            # Conectar ao Google Sheets
+            spreadsheet = self.gc.open_by_key(self.SHEET_ID)
+
+            # Verificar ou criar a worksheet
             try:
-                spreadsheet = self.gc.open_by_key(self.SHEET_ID)
-                
-                try:
-                    self.worksheet = spreadsheet.worksheet('Registros')
-                except gspread.WorksheetNotFound:
-                    self.worksheet = spreadsheet.add_worksheet('Registros', 1000, 20)
-                    headers = ['Data', 'Órgão', 'Dotação', 'Sequencial', 'Valor']
-                    self.worksheet.append_row(headers)
-                
-                st.success(f"Conectado à planilha: {spreadsheet.title}")
-                
-            except gspread.exceptions.APIError as e:
-                if '404' in str(e):
-                    st.error(f"""
-                        Planilha não encontrada. Verifique:
-                        1. ID da planilha: {self.SHEET_ID}
-                        2. Compartilhamento com: {self.service_account_email}
-                        """)
-                raise
-                
+                self.worksheet = spreadsheet.worksheet('Registros')
+            except gspread.WorksheetNotFound:
+                self.worksheet = spreadsheet.add_worksheet('Registros', 1000, 20)
+                headers = ['Data', 'Órgão', 'Dotação', 'Sequencial', 'Valor']
+                self.worksheet.append_row(headers)
+
+            st.success(f"Conectado à planilha: {spreadsheet.title}")
+        
         except Exception as e:
-            st.error(f"Erro ao inicializar Google Drive: {str(e)}")
+            st.error(f"Erro ao inicializar Google Sheets: {str(e)}")
             raise
 
     def load_excel_data(self):
@@ -126,13 +129,9 @@ class streamlit_app:
                 int(data['Sequencial']),
                 str(data['Valor'])
             ]
-            
             self.worksheet.append_row(row_data)
             return True
-            
         except gspread.exceptions.APIError as e:
-            if '404' in str(e):
-                raise Exception(f"Planilha não encontrada. Verifique se {self.service_account_email} tem acesso.")
             raise Exception(f"Erro na API do Google Sheets: {str(e)}")
         except Exception as e:
             raise Exception(f"Erro ao salvar na planilha: {str(e)}")
@@ -209,9 +208,7 @@ class streamlit_app:
                             }
                             
                             if self.save_to_google_sheets(registro):
-                                st.success(f"""Dados enviados com sucesso!
-                                    Valor registrado: {self.format_currency(valor_float)}
-                                    Data: {data.strftime('%d/%m/%Y')}""")
+                                st.success(f"Dados enviados com sucesso! Valor registrado: {self.format_currency(valor_float)} Data: {data.strftime('%d/%m/%Y')}")
                             
                         except ValueError:
                             st.error("Por favor, insira um valor numérico válido (ex: 1.000,00)")
@@ -221,5 +218,5 @@ class streamlit_app:
                         st.warning("Por favor, preencha o valor.")
 
 if __name__ == "__main__":
-    app = streamlit_app()
+    app = StreamlitApp()
     app.run()
